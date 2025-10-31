@@ -3,60 +3,111 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>แผนที่มหาวิทยาลัย</title>
+  <title>แผนที่มหาวิทยาลัย (Interactive Graphic Map)</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <style>
     html, body { height: 100%; margin: 0; }
     #map { height: 100vh; width: 100%; }
+    .leaflet-tooltip { font-size: 14px; }
+    .route-line { stroke: blue; stroke-width: 3; }
   </style>
 </head>
 <body>
   <div id="map"></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    // โหลดภาพแผนที่ (อัปโหลดในขั้นตอนถัดไป)
-    const imageUrl = 'campus-map.png';
-
+    const imageUrl = 'campus-map.png'; // ภาพกราฟิกแผนที่ของคุณ
     const img = new Image();
+
     img.onload = function() {
       const w = img.width, h = img.height;
 
+      // ตั้งค่าแผนที่แบบภาพ
       const map = L.map('map', {
         crs: L.CRS.Simple,
-        minZoom: -2
+        minZoom: -2,
+        maxZoom: 2
       });
 
-      const bounds = [[0,0], [h,w]];
+      const bounds = [[0, 0], [h, w]];
       L.imageOverlay(imageUrl, bounds).addTo(map);
       map.fitBounds(bounds);
 
-      // จุดสถานที่
+      // -------- จุดสถานที่ --------
       const places = [
         {name: "คณะวิทยาการจัดการ", x: 850, y: 950},
         {name: "สระน้ำกลาง", x: 1200, y: 650},
         {name: "ตลาด", x: 1500, y: 500}
       ];
 
-      places.forEach(p => {
-        L.circleMarker([p.y, p.x], {radius: 8, color:'red'})
+      // สร้าง marker แต่ละจุด
+      const markers = places.map(p => {
+        const marker = L.circleMarker([p.y, p.x], {radius: 8, color:'red'})
           .addTo(map)
-          .bindTooltip(p.name);
+          .bindTooltip(p.name, {permanent: false});
+        marker.placeData = p;
+        return marker;
       });
 
-      // แสดงตำแหน่งผู้ใช้
+      // -------- แสดงตำแหน่งจริงของผู้ใช้ --------
+      let userMarker = null;
+
       if (navigator.geolocation) {
         navigator.geolocation.watchPosition(pos => {
-          const marker = L.circleMarker([h/2, w/2], {
-            radius: 10,
-            color: 'blue'
-          }).addTo(map).bindTooltip("คุณอยู่ที่นี่ (จำลอง)");
+          // สร้างหรืออัปเดต marker ผู้ใช้
+          if (userMarker) map.removeLayer(userMarker);
 
-          console.log(pos.coords);
+          // แสดงจุดผู้ใช้ในตำแหน่งกลางแผนที่ (แทนด้วยจริงในระบบกราฟิก)
+          userMarker = L.circleMarker([h/2, w/2], {
+            radius: 10,
+            color: 'blue',
+            fillColor: 'blue',
+            fillOpacity: 0.6
+          }).addTo(map).bindTooltip("ตำแหน่งของคุณ", {permanent: false});
+
+        }, err => {
+          console.log("ไม่สามารถระบุตำแหน่งได้:", err.message);
         });
       } else {
-        alert("เบราว์เซอร์ไม่รองรับการระบุตำแหน่ง");
+        alert("เบราว์เซอร์ไม่รองรับระบบระบุตำแหน่ง");
       }
+
+      // -------- ระบบแสดงเส้นทางอย่างง่าย --------
+      let routeLine = null;
+
+      markers.forEach(marker => {
+        marker.on('click', () => {
+          if (!userMarker) {
+            alert("ยังไม่ทราบตำแหน่งของคุณ");
+            return;
+          }
+
+          const start = userMarker.getLatLng();
+          const end = marker.getLatLng();
+
+          // ลบเส้นเก่า
+          if (routeLine) map.removeLayer(routeLine);
+
+          // วาดเส้นตรงจำลองเส้นทาง
+          routeLine = L.polyline([start, end], {color: 'blue', weight: 3}).addTo(map);
+
+          // คำนวณระยะทางโดยประมาณ (พิกเซล)
+          const dx = end.lng - start.lng;
+          const dy = end.lat - start.lat;
+          const distance = Math.sqrt(dx*dx + dy*dy).toFixed(0);
+          const travelTime = (distance / 200).toFixed(1); // คิดแบบง่ายๆ
+
+          marker.bindTooltip(`${marker.placeData.name}<br>≈ ${distance} px<br>เวลาเดินทาง: ${travelTime} นาที`)
+            .openTooltip();
+        });
+      });
+
+      // -------- แสดงพิกัดเมื่อคลิก --------
+      map.on('click', e => {
+        console.log(`X=${e.latlng.lng.toFixed(1)} , Y=${e.latlng.lat.toFixed(1)}`);
+      });
     };
+
     img.src = imageUrl;
   </script>
 </body>
