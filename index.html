@@ -1,0 +1,63 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>แผนที่มหาวิทยาลัย</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <style>
+    html, body { height: 100%; margin: 0; }
+    #map { height: 100vh; width: 100%; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    // โหลดภาพแผนที่ (อัปโหลดในขั้นตอนถัดไป)
+    const imageUrl = 'campus-map.png';
+
+    const img = new Image();
+    img.onload = function() {
+      const w = img.width, h = img.height;
+
+      const map = L.map('map', {
+        crs: L.CRS.Simple,
+        minZoom: -2
+      });
+
+      const bounds = [[0,0], [h,w]];
+      L.imageOverlay(imageUrl, bounds).addTo(map);
+      map.fitBounds(bounds);
+
+      // จุดสถานที่
+      const places = [
+        {name: "คณะวิทยาการจัดการ", x: 850, y: 950},
+        {name: "สระน้ำกลาง", x: 1200, y: 650},
+        {name: "ตลาด", x: 1500, y: 500}
+      ];
+
+      places.forEach(p => {
+        L.circleMarker([p.y, p.x], {radius: 8, color:'red'})
+          .addTo(map)
+          .bindTooltip(p.name);
+      });
+
+      // แสดงตำแหน่งผู้ใช้
+      if (navigator.geolocation) {
+        navigator.geolocation.watchPosition(pos => {
+          const marker = L.circleMarker([h/2, w/2], {
+            radius: 10,
+            color: 'blue'
+          }).addTo(map).bindTooltip("คุณอยู่ที่นี่ (จำลอง)");
+
+          console.log(pos.coords);
+        });
+      } else {
+        alert("เบราว์เซอร์ไม่รองรับการระบุตำแหน่ง");
+      }
+    };
+    img.src = imageUrl;
+  </script>
+</body>
+</html>
